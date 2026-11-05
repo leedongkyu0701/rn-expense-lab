@@ -17,11 +17,12 @@ export default function NewExpenseScreen() {
   // 닫을 때 화면이 제거되므로, 다시 열면 빈 입력으로 시작한다.
   const [amount, setAmount] = useState("");
   const hasSubmitted = useRef(false);
-  const { totalAmount, addExpense } = useExpenses();
+  const { totalAmount, canAddExpense, addExpense } = useExpenses();
   const headerHeight = useHeaderHeight();
   const numericAmount = Number(amount);
 
   const canRecord =
+    canAddExpense &&
     /^\d+$/.test(amount) &&
     Number.isSafeInteger(numericAmount) &&
     numericAmount > 0 &&
@@ -36,8 +37,8 @@ export default function NewExpenseScreen() {
     if (!canRecord || hasSubmitted.current) return;
 
     // 화면이 닫히기 전 연속으로 눌러도 한 건만 추가한다.
+    if (!addExpense(numericAmount)) return;
     hasSubmitted.current = true;
-    addExpense(numericAmount);
     setAmount("");
     closeModal();
   }
@@ -53,6 +54,11 @@ export default function NewExpenseScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.text}>금액</Text>
+        {!canAddExpense && (
+          <Text accessibilityRole="alert" style={styles.text}>
+            지출 ID가 안전한 정수 범위에 도달하여 더 이상 추가할 수 없습니다.
+          </Text>
+        )}
         <TextInput
           accessibilityLabel="지출 금액"
           style={styles.input}

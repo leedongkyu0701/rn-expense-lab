@@ -8,6 +8,7 @@ import {
 } from "react-native";
 
 import { useExpenses } from "@/features/expenses/expenses-context";
+import { ExpensesStorageStatus } from "@/features/expenses/expenses-storage-status";
 
 export default function HomeScreen() {
   const { expenses, totalAmount, deleteExpense } = useExpenses();
@@ -27,6 +28,8 @@ export default function HomeScreen() {
       <Text style={styles.summary}>
         총 {expenses.length}건 · {totalAmount.toLocaleString("ko-KR")}원
       </Text>
+
+      <ExpensesStorageStatus />
 
       <FlatList
         style={styles.list}
