@@ -1,61 +1,27 @@
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   FlatList,
-  Keyboard,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
 import { useExpenses } from "@/features/expenses/expenses-context";
 
 export default function HomeScreen() {
-  const [amount, setAmount] = useState("");
-  const { expenses, totalAmount, addExpense, deleteExpense } = useExpenses();
-
-  const numericAmount = Number(amount);
-
-  const canRecord =
-    /^\d+$/.test(amount) &&
-    Number.isSafeInteger(numericAmount) &&
-    numericAmount > 0 &&
-    Number.isSafeInteger(totalAmount + numericAmount);
-
-  function recordExpense() {
-    if (!canRecord) return;
-
-    addExpense(numericAmount);
-    setAmount("");
-    Keyboard.dismiss();
-  }
+  const { expenses, totalAmount, deleteExpense } = useExpenses();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>지출 기록</Text>
 
-      <Text style={styles.text}>금액</Text>
-
-      <TextInput
-        accessibilityLabel="지출 금액"
-        style={styles.input}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="number-pad"
-        placeholder="예: 12000"
-        placeholderTextColor="#777777"
-      />
-
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: !canRecord }}
-        disabled={!canRecord}
-        onPress={recordExpense}
-        style={[styles.button, !canRecord && styles.disabledButton]}
+        onPress={() => router.push("/expenses/new")}
+        style={styles.button}
       >
-        <Text style={styles.buttonText}>기록하기</Text>
+        <Text style={styles.buttonText}>지출 추가</Text>
       </Pressable>
 
       <Text style={styles.summary}>
@@ -119,26 +85,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111111",
   },
-  text: {
-    fontSize: 16,
-    color: "#111111",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#cccccc",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 18,
-    color: "#111111",
-  },
   button: {
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
     backgroundColor: "#2563eb",
-  },
-  disabledButton: {
-    opacity: 0.4,
   },
   buttonText: {
     fontSize: 16,
