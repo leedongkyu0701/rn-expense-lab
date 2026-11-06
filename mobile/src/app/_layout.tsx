@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-import { ExpensesProvider } from "@/features/expenses/expenses-context";
+import { AppQueryProvider } from "@/lib/query-provider";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -8,7 +8,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <ExpensesProvider>
+    <AppQueryProvider>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="expenses/[id]" options={{ title: "지출 상세" }} />
@@ -17,6 +17,6 @@ export default function RootLayout() {
           options={{ title: "지출 등록", presentation: "modal" }}
         />
       </Stack>
-    </ExpensesProvider>
+    </AppQueryProvider>
   );
 }

@@ -11,36 +11,43 @@ import {
   TextInput,
 } from "react-native";
 
-import { useExpenses } from "@/features/expenses/expenses-context";
+import { totalExpenses } from "@/features/expenses/expense";
+import { useCreateExpense, useExpensesQuery } from "@/features/expenses/expenses-queries";
 
 export default function NewExpenseScreen() {
   // 닫을 때 화면이 제거되므로, 다시 열면 빈 입력으로 시작한다.
   const [amount, setAmount] = useState("");
-  const hasSubmitted = useRef(false);
-  const { totalAmount, canAddExpense, addExpense } = useExpenses();
+  // 렌더 이전의 연속 탭까지 막는다. 실패하면 잠금을 해제한다.
+  const submitting = useRef(false);
+  const creation = useCreateExpense();
+  const list = useExpensesQuery();
+  const totalAmount = list.data ? totalExpenses(list.data) : undefined;
   const headerHeight = useHeaderHeight();
   const numericAmount = Number(amount);
 
   const canRecord =
-    canAddExpense &&
+    !creation.isPending &&
     /^\d+$/.test(amount) &&
     Number.isSafeInteger(numericAmount) &&
     numericAmount > 0 &&
-    Number.isSafeInteger(totalAmount + numericAmount);
+    (totalAmount === undefined || Number.isSafeInteger(totalAmount + numericAmount));
 
   function closeModal() {
     Keyboard.dismiss();
     router.dismissTo("/");
   }
 
-  function recordExpense() {
-    if (!canRecord || hasSubmitted.current) return;
-
-    // 화면이 닫히기 전 연속으로 눌러도 한 건만 추가한다.
-    if (!addExpense(numericAmount)) return;
-    hasSubmitted.current = true;
-    setAmount("");
-    closeModal();
+  async function recordExpense() {
+    if (!canRecord || submitting.current) return;
+    submitting.current = true;
+    try {
+      // 서버가 최신 합계와 ID 범위를 최종 검증한다.
+      await creation.mutateAsync(numericAmount);
+      closeModal();
+    } catch {
+      submitting.current = false;
+      // mutation.error를 표시하고 입력값은 유지한다.
+    }
   }
 
   return (
@@ -54,15 +61,22 @@ export default function NewExpenseScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.text}>금액</Text>
-        {!canAddExpense && (
+        {totalAmount !== undefined && Number.isSafeInteger(numericAmount) && numericAmount > 0 &&
+          !Number.isSafeInteger(totalAmount + numericAmount) && (
           <Text accessibilityRole="alert" style={styles.text}>
-            지출 ID가 안전한 정수 범위에 도달하여 더 이상 추가할 수 없습니다.
+            지출 합계가 안전한 정수 범위를 초과합니다.
+          </Text>
+        )}
+        {creation.isError && (
+          <Text accessibilityRole="alert" style={styles.text}>
+            {creation.error.message} 입력값을 확인한 후 다시 저장할 수 있습니다.
           </Text>
         )}
         <TextInput
           accessibilityLabel="지출 금액"
           style={styles.input}
           value={amount}
+          editable={!creation.isPending}
           onChangeText={setAmount}
           keyboardType="number-pad"
           placeholder="예: 12000"
@@ -70,15 +84,17 @@ export default function NewExpenseScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !canRecord }}
+          accessibilityState={{ disabled: !canRecord, busy: creation.isPending }}
           disabled={!canRecord}
-          onPress={recordExpense}
+          onPress={() => { void recordExpense(); }}
           style={[styles.button, !canRecord && styles.disabledButton]}
         >
-          <Text style={styles.buttonText}>저장</Text>
+          <Text style={styles.buttonText}>{creation.isPending ? "저장 중…" : "저장"}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ disabled: creation.isPending }}
+          disabled={creation.isPending}
           onPress={closeModal}
           style={styles.cancelButton}
         >

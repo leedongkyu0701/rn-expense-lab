@@ -1,20 +1,37 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 
-import { useExpenses } from "@/features/expenses/expenses-context";
+import { useExpenseQuery } from "@/features/expenses/expenses-queries";
+import { ApiError } from "@/lib/api";
 
 export default function ExpenseDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
-  const { expenses } = useExpenses();
 
   // 배열, 음수, 소수, 지수 표기 등은 지출 ID로 허용하지 않는다.
   const expenseId = typeof id === "string" && /^[1-9]\d*$/.test(id) ? Number(id) : NaN;
   const isValidId = Number.isSafeInteger(expenseId);
-  const expense = isValidId ? expenses.find((item) => item.id === expenseId) : undefined;
+  const query = useExpenseQuery(isValidId ? expenseId : null);
+  const expense = query.data;
+  const notFound = query.error instanceof ApiError && query.error.status === 404;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {expense ? (
+      {!isValidId ? (
+        <>
+          <Text accessibilityRole="header" style={styles.title}>잘못된 지출 ID입니다</Text>
+          <Text style={styles.message}>목록에서 올바른 지출을 선택해주세요.</Text>
+        </>
+      ) : notFound ? (
+        <>
+          <Text accessibilityRole="header" style={styles.title}>지출을 찾을 수 없습니다</Text>
+          <Text style={styles.message}>삭제되었거나 서버에 없는 지출입니다.</Text>
+        </>
+      ) : query.isPending ? (
+        <>
+          <ActivityIndicator accessibilityLabel="지출 상세 조회 중" color="#2563eb" />
+          <Text style={styles.message}>지출을 불러오는 중입니다.</Text>
+        </>
+      ) : expense ? (
         <>
           <Text accessibilityRole="header" style={styles.title}>지출 상세</Text>
           <Text style={styles.label}>지출 ID</Text>
@@ -22,16 +39,17 @@ export default function ExpenseDetailScreen() {
           <Text style={styles.label}>금액</Text>
           <Text style={styles.amount}>{expense.amount.toLocaleString("ko-KR")}원</Text>
         </>
-      ) : (
+      ) : null}
+      {isValidId && query.isError && !notFound && (
         <>
-          <Text accessibilityRole="header" style={styles.title}>
-            {isValidId ? "지출을 찾을 수 없습니다" : "잘못된 지출 ID입니다"}
+          <Text accessibilityRole="alert" style={styles.message}>
+            {expense ? "이전 조회 결과를 표시하고 있습니다. " : "지출을 불러오지 못했습니다. "}
+            {query.error.message}
           </Text>
-          <Text style={styles.message}>
-            {isValidId
-              ? "삭제되었거나 현재 기록에 없는 지출입니다. 목록에서 지출을 다시 선택해주세요."
-              : "올바른 지출을 확인할 수 없습니다. 목록에서 지출을 선택해주세요."}
-          </Text>
+          <Pressable accessibilityRole="button" disabled={query.isFetching}
+            onPress={() => { void query.refetch(); }} style={styles.button}>
+            <Text style={styles.buttonText}>{query.isFetching ? "재시도 중…" : "다시 시도"}</Text>
+          </Pressable>
         </>
       )}
 

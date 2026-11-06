@@ -1,7 +1,5 @@
 import { ScrollView, StyleSheet, Text } from "react-native";
 
-import { ExpensesStorageStatus } from "@/features/expenses/expenses-storage-status";
-
 export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -10,9 +8,11 @@ export default function SettingsScreen() {
         지출을 기록하고 목록과 합계를 확인하는 간단한 가계부입니다.
       </Text>
       <Text style={styles.text}>
-        저장이 완료된 지출과 삭제 결과는 이 기기에 보관되어 앱을 다시 실행해도 유지됩니다.
+        지출과 삭제 결과는 연결된 API 서버에 저장됩니다. 앱에서 조회·등록·삭제하려면 서버에 연결할 수 있어야 합니다.
       </Text>
-      <ExpensesStorageStatus />
+      <Text style={styles.text}>
+        앱의 조회 캐시는 메모리에만 유지됩니다. 이전 버전의 기기 기록은 보존하지만 이번 서버 목록으로 이전하지 않습니다.
+      </Text>
     </ScrollView>
   );
 }

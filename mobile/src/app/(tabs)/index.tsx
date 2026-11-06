@@ -1,5 +1,7 @@
 import { router } from "expo-router";
+import { useRef } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -7,11 +9,21 @@ import {
   View,
 } from "react-native";
 
-import { useExpenses } from "@/features/expenses/expenses-context";
-import { ExpensesStorageStatus } from "@/features/expenses/expenses-storage-status";
+import { totalExpenses } from "@/features/expenses/expense";
+import { useDeleteExpense, useExpensesQuery } from "@/features/expenses/expenses-queries";
 
 export default function HomeScreen() {
-  const { expenses, totalAmount, deleteExpense } = useExpenses();
+  const query = useExpensesQuery();
+  const deletion = useDeleteExpense();
+  const deleting = useRef(false);
+  const expenses = query.data ?? [];
+  const totalAmount = totalExpenses(expenses);
+
+  function removeExpense(id: number) {
+    if (deleting.current) return;
+    deleting.current = true;
+    deletion.mutate(id, { onSettled: () => { deleting.current = false; } });
+  }
 
   return (
     <View style={styles.container}>
@@ -25,11 +37,30 @@ export default function HomeScreen() {
         <Text style={styles.buttonText}>지출 추가</Text>
       </Pressable>
 
-      <Text style={styles.summary}>
-        총 {expenses.length}건 · {totalAmount.toLocaleString("ko-KR")}원
-      </Text>
-
-      <ExpensesStorageStatus />
+      {query.data !== undefined && (
+        <Text style={styles.summary}>
+          총 {expenses.length}건 · {totalAmount.toLocaleString("ko-KR")}원
+        </Text>
+      )}
+      {query.isPending && (
+        <ActivityIndicator accessibilityLabel="지출 목록 조회 중" color="#2563eb" />
+      )}
+      {query.isError && (
+        <View style={styles.status}>
+          <Text accessibilityRole="alert" style={styles.errorText}>
+            {query.data !== undefined ? "기존 목록을 표시하고 있습니다. " : ""}{query.error.message}
+          </Text>
+          <Pressable accessibilityRole="button" disabled={query.isFetching}
+            onPress={() => { void query.refetch(); }} style={styles.retryButton}>
+            <Text style={styles.detailHint}>{query.isFetching ? "재시도 중…" : "다시 시도"}</Text>
+          </Pressable>
+        </View>
+      )}
+      {deletion.isError && (
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          삭제하지 못했습니다. {deletion.error.message}
+        </Text>
+      )}
 
       <FlatList
         style={styles.list}
@@ -37,10 +68,11 @@ export default function HomeScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
+        alwaysBounceVertical
+        refreshing={query.isRefetching}
+        onRefresh={() => { if (!query.isFetching) void query.refetch(); }}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            첫 지출을 기록해보세요.
-          </Text>
+          query.isSuccess ? <Text style={styles.emptyText}>첫 지출을 기록해보세요.</Text> : undefined
         }
         renderItem={({ item }) => (
           <View style={styles.expenseRow}>
@@ -64,10 +96,14 @@ export default function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.amount}원 지출 삭제`}
-              onPress={() => deleteExpense(item.id)}
+              accessibilityState={{ disabled: deletion.isPending }}
+              disabled={deletion.isPending}
+              onPress={() => removeExpense(item.id)}
               style={styles.deleteButton}
             >
-              <Text style={styles.deleteText}>삭제</Text>
+              <Text style={styles.deleteText}>
+                {deletion.isPending && deletion.variables === item.id ? "삭제 중…" : "삭제"}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -77,6 +113,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  status: { gap: 8 },
+  errorText: { color: "#dc2626", fontSize: 14, lineHeight: 20 },
+  retryButton: { paddingVertical: 12, alignSelf: "flex-start" },
   container: {
     flex: 1,
     padding: 24,
